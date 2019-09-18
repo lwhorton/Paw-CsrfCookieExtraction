@@ -18,7 +18,7 @@ GET / -> 401, Set-Cookie: XSRF-TOKEN=abc123; Path=/
 POST /login Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l, X-Xsrf-Token: abc123 -> 200
 ```
 
-![login example](https://github.com/lwhorton/Paw-CsrfCookieExtraction/login-example.png)
+![login example](/login-example.png?raw=true)
 
 ## Installation
 
