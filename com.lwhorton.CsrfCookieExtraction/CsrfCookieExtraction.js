@@ -1,40 +1,40 @@
 var CsrfCookieExtraction = function() {
-	this.evaluate = function(context) {
-        // populate the value by extracting {csrfCookieName} from "Set-Cookie:
-        // {csrfCookieName}={csrf-token}" from the provided {Source Request}'s
-        // most recent exchange
-        let request = context.getRequestByName(this.req.name)
-        let matcher = new RegExp( this.csrfCookieName + '=(.)+;', 'i')
+  const xsrfCookieMatcher = new RegExp("xsrf-token" + "=([^;]+)", "i");
+  const parseCsrf = req => {
+    const cookieHeader = req.ex.getResponseHeaderByName("Set-Cookie");
 
-        let setCookieHeader = request.getLastExchange().getResponseHeaderByName("Set-Cookie") || ''
+    const csrf =
+      typeof cookieHeader == "undefined"
+        ? null
+        : cookieHeader.match(xsrfCookieMatcher)[1];
 
-        let header = setCookieHeader.match(matcher)
+    return Object.assign({}, req, { csrf: csrf });
+  };
 
-        if (!header) {
-            return undefined
-        }
+  this.evaluate = function(context) {
+    const requests = context
+      .getAllRequests()
+      .map(r => ({ name: r.name, ex: r.getLastExchange() }))
+      .filter(r => typeof r.ex != "undefined")
+      .map(parseCsrf)
+      .filter(req => req.csrf);
 
-        let csrfHeader = header[0]
-        let token = (csrfHeader.split('=')[1]).slice(0, -1)
+    if (requests.length == 0) {
+      return null;
+    }
 
-        return token
-	}
+    const exchDate = exch => Date.parse(exch.getResponseHeaderByName("Date"));
+    const newerExchange = (a, b) => (exchDate(a.ex) > exchDate(b.ex) ? a : b);
+    return requests.reduce(newerExchange).csrf;
+  };
 
-	this.text = function(context) {
-		if(this.req !== null) {
-			return this.req.name + " ➤ " + this.csrfCookieName;
-		}
-		return this.header;
-	}
-}
+  this.text = function(context) {
+    return this.header;
+  };
+};
 
 CsrfCookieExtraction.identifier = "com.lwhorton.CsrfCookieExtraction";
 
 CsrfCookieExtraction.title = "CSRF Cookie Extraction";
-
-CsrfCookieExtraction.inputs = [
-	InputField("req", "Source Request", "Request"),
-    InputField("csrfCookieName", "Set-Cookie: {CSRF-COOKIE-NAME}", "Select", {"choices": {"xsrf-token": "XSRF-TOKEN"}})
-];
 
 registerDynamicValueClass(CsrfCookieExtraction);
